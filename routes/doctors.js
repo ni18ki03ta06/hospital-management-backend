@@ -14,6 +14,39 @@ router.get('/', protect, authorize('MAIN_DOCTOR', 'DOCTOR', 'PATIENT'), async (r
   }
 });
 
+// GET /api/doctors/referral-counts/monthly
+// Returns how many patients each doctor referred to admin this calendar month
+router.get('/referral-counts/monthly', protect, authorize('MAIN_DOCTOR'), async (req, res) => {
+  try {
+    const Referral = require('../models/Referral');
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const counts = await Referral.aggregate([
+      {
+        $match: {
+          toAdmin: true,
+          createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+        },
+      },
+      {
+        $group: {
+          _id: '$fromDoctor',
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Convert to { doctorUserId: count } map
+    const map = {};
+    counts.forEach(c => { map[c._id.toString()] = c.count; });
+    res.json(map);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // GET /api/doctors/:id
 router.get('/:id', protect, async (req, res) => {
   try {
