@@ -10,8 +10,6 @@ const Expense = require('./models/Expense');
 
 async function seed() {
   await mongoose.connect(process.env.MONGO_URI);
-  console.log('Connected to MongoDB');
-
   // Only delete users/doctors — keep existing patients
   await Promise.all([User.deleteMany(), Doctor.deleteMany(), Patient.deleteMany()]);
 
@@ -31,19 +29,6 @@ async function seed() {
   await Doctor.create({ userId: doc1._id, specialization: 'Cardiology' });
   await Doctor.create({ userId: doc2._id, specialization: 'Neurology' });
   await Doctor.create({ userId: doc3._id, specialization: 'General Medicine' });
-
-  console.log('\n✅ Accounts created successfully!\n');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('🔐 ADMIN (Main Doctor)');
-  console.log('   Email:    shrikantmhaske05@gmail.com');
-  console.log('   Password: admin');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('👨‍⚕️ DOCTORS (all use same password)');
-  console.log('   sarah@hospital.com  → Cardiology');
-  console.log('   mike@hospital.com   → Neurology');
-  console.log('   priya@hospital.com  → General Medicine');
-  console.log('   Password: Doctor@1234');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
   await mongoose.disconnect();
 }

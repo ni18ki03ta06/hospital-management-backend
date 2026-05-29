@@ -26,8 +26,6 @@ async function createAdmin() {
   try {
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGO_URI);
-    console.log('✅ MongoDB connected');
-
     // ── Step 1: Create or update Firebase Auth user ──────────────────
     let firebaseUser;
     try {
@@ -37,8 +35,7 @@ async function createAdmin() {
         displayName: ADMIN_NAME,
         emailVerified: true,
       });
-      console.log('✅ Firebase user created:', firebaseUser.uid);
-    } catch (err) {
+      } catch (err) {
       if (err.code === 'auth/email-already-exists') {
         // User already exists — fetch and update password
         firebaseUser = await admin.auth().getUserByEmail(ADMIN_EMAIL);
@@ -47,8 +44,7 @@ async function createAdmin() {
           displayName: ADMIN_NAME,
           emailVerified: true,
         });
-        console.log('✅ Firebase user already exists, updated:', firebaseUser.uid);
-      } else {
+        } else {
         throw err;
       }
     }
@@ -63,8 +59,7 @@ async function createAdmin() {
       mongoUser.name = ADMIN_NAME;
       mongoUser.mustChangePassword = false;
       await mongoUser.save();
-      console.log('✅ MongoDB user updated, role: MAIN_DOCTOR');
-    } else {
+      } else {
       // Create new user (skip password hashing — Firebase handles auth)
       mongoUser = await User.create({
         name: ADMIN_NAME,
@@ -74,17 +69,9 @@ async function createAdmin() {
         mustChangePassword: false,
         password: 'firebase-managed', // placeholder — not used for auth
       });
-      console.log('✅ MongoDB user created, role: MAIN_DOCTOR');
-    }
+      }
 
-    console.log('\n🎉 Admin setup complete!');
-    console.log('   Email   :', ADMIN_EMAIL);
-    console.log('   Password:', ADMIN_PASSWORD);
-    console.log('   Role    : MAIN_DOCTOR');
-    console.log('   Firebase UID:', firebaseUser.uid);
-    console.log('   MongoDB ID  :', mongoUser._id);
-
-  } catch (err) {
+    } catch (err) {
     console.error('❌ Error creating admin:', err.message);
     process.exit(1);
   } finally {

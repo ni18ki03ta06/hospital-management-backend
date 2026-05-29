@@ -40,8 +40,6 @@ const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 async function updateAdmin() {
   await mongoose.connect(MONGO_URI);
-  console.log('✅ Connected to MongoDB');
-
   const admin = await User.findOne({ role: 'MAIN_DOCTOR' });
 
   if (!admin) {
@@ -52,22 +50,13 @@ async function updateAdmin() {
       password: 'admin',
       role: 'MAIN_DOCTOR',
     });
-    console.log('✅ Admin created!');
-  } else {
+    } else {
     // Update existing admin
     admin.name = 'Dr. Ravikant Patil';
     admin.email = 'shrikantmhaske05@gmail.com';
     admin.password = 'admin';
     await admin.save();
-    console.log('✅ Admin updated!');
-  }
-
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('🔐 Admin credentials:');
-  console.log('   Email:    shrikantmhaske05@gmail.com');
-  console.log('   Password: admin');
-  console.log('   Role:     MAIN_DOCTOR');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    }
 
   await mongoose.disconnect();
 }
