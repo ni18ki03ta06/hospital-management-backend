@@ -40,7 +40,8 @@ router.get('/', protect, authorize('MAIN_DOCTOR'), async (req, res) => {
       pendingTokens,
       totalRevenue,
       totalExpense,
-      profit: totalRevenue - totalExpense
+      profit: totalRevenue - totalExpense,
+      adminId: req.user._id.toString(), // admin's own ID for chat room generation
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
