@@ -45,7 +45,6 @@ router.post('/', protect, authorize('DOCTOR'), upload.single('photo'), async (re
     const isAdminReferral = toAdmin === 'true' || toAdmin === true;
     const photoUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
-    // Sanitize incoming IDs — treat empty strings / "undefined" / "null" as missing
     const cleanPatientId = patientId && String(patientId).trim() !== '' && patientId !== 'undefined' && patientId !== 'null'
       ? String(patientId).trim() : null;
     const cleanToDoctor = toDoctor && String(toDoctor).trim() !== '' && toDoctor !== 'undefined' && toDoctor !== 'null'
@@ -55,32 +54,22 @@ router.post('/', protect, authorize('DOCTOR'), upload.single('photo'), async (re
     let patientRecord = null;
 
     if (cleanPatientId && mongoose.Types.ObjectId.isValid(cleanPatientId)) {
-      // Case 1: patient selected from dropdown — patientId is the User._id
       resolvedPatientUserId = cleanPatientId;
       patientRecord = await Patient.findOne({ userId: resolvedPatientUserId });
     } else if (patientEmail && patientEmail.trim()) {
-      // Case 2 or 3: email provided
       const email = patientEmail.trim().toLowerCase();
-      
-      // Simple email validation regex check
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         return res.status(400).json({ message: 'Please enter a valid patient email address.' });
       }
-
       let existingUser = await User.findOne({ email });
-
       if (existingUser) {
-        // Safe check: If existing user is a doctor or admin, block patient referral with this email
         if (existingUser.role !== 'PATIENT') {
           return res.status(400).json({ message: 'This email is already registered as a doctor or admin, not a patient.' });
         }
-
-        // User exists — find or create patient record
         resolvedPatientUserId = existingUser._id;
         patientRecord = await Patient.findOne({ userId: existingUser._id });
         if (!patientRecord) {
-          // User exists but no patient record — create one assigned to this doctor
           patientRecord = await Patient.create({
             userId: existingUser._id,
             assignedDoctor: req.user._id,
@@ -89,18 +78,16 @@ router.post('/', protect, authorize('DOCTOR'), upload.single('photo'), async (re
             isActive: true,
           });
         } else {
-          // Patient record exists — make it assigned to this doctor, approved, and active
           patientRecord.assignedDoctor = req.user._id;
           patientRecord.isActive = true;
           patientRecord.approvalStatus = 'APPROVED';
           await patientRecord.save();
         }
       } else {
-        // Case 3: User doesn't exist — create new patient with temp@1234
         const newUser = await User.create({
-          name: email.split('@')[0], // use email prefix as name
+          name: email.split('@')[0],
           email,
-          password: 'temp@1234',     // always hardcoded — never from frontend
+          password: 'temp@1234',
           role: 'PATIENT',
           mustChangePassword: true,
         });
@@ -115,44 +102,29 @@ router.post('/', protect, authorize('DOCTOR'), upload.single('photo'), async (re
       }
     }
 
-    // Explicit checkpoint: Return clean error if patient could not be resolved
-    if (!resolvedPatientUserId) {
-      return res.status(400).json({ message: 'Please select a valid patient from the dropdown or enter a valid patient email.' });
-    }
-
-    // Resolve target doctor ID
+    // ALL FIELDS OPTIONAL — allow referral with no patient info (admin can add patient later)
     let finalToDoctor = null;
-
     if (isAdminReferral) {
-      // Find the main doctor (Dr. Ravikant Patil)
       const mainDoctor = await User.findOne({
-        $or: [
-          { role: 'MAIN_DOCTOR' },
-          { role: 'admin' },
-          { role: 'ADMIN' },
-          { name: /Ravikant/i }
-        ]
+        $or: [{ role: 'MAIN_DOCTOR' }, { role: 'admin' }, { role: 'ADMIN' }, { name: /Ravikant/i }]
       });
       if (!mainDoctor) {
-        return res.status(400).json({ message: 'Admin doctor account (Dr. Ravikant Patil) not found in the system.' });
+        return res.status(400).json({ message: 'Admin doctor account not found in the system.' });
       }
       finalToDoctor = mainDoctor._id;
     } else {
-      // Standard doctor-to-doctor referral: toDoctor must be provided and valid
       if (!cleanToDoctor || !mongoose.Types.ObjectId.isValid(cleanToDoctor)) {
         return res.status(400).json({ message: 'A valid target doctor is required for standard referrals.' });
       }
-
       const targetDoctor = await User.findOne({ _id: cleanToDoctor, role: 'DOCTOR' });
       if (!targetDoctor) {
-        return res.status(400).json({ message: 'The specified target doctor could not be found in the system.' });
+        return res.status(400).json({ message: 'The specified target doctor could not be found.' });
       }
       finalToDoctor = targetDoctor._id;
     }
 
-    // Build referral data
     const referralData = {
-      patientId: resolvedPatientUserId,
+      patientId: resolvedPatientUserId || undefined,
       fromDoctor: req.user._id,
       toAdmin: isAdminReferral,
       toDoctor: finalToDoctor,
@@ -165,7 +137,6 @@ router.post('/', protect, authorize('DOCTOR'), upload.single('photo'), async (re
 
     const referral = await Referral.create(referralData);
 
-    // If referring to admin, mark patient as inactive at doctor side
     if (isAdminReferral && patientRecord) {
       await Patient.findByIdAndUpdate(patientRecord._id, {
         isActive: false,
@@ -180,6 +151,58 @@ router.post('/', protect, authorize('DOCTOR'), upload.single('photo'), async (re
     res.status(201).json(populated);
   } catch (err) {
     res.status(400).json({ message: err.message });
+  }
+});
+
+// POST /api/referrals/:id/add-patient — Admin manually adds patient from referral detail
+router.post('/:id/add-patient', protect, authorize('MAIN_DOCTOR'), async (req, res) => {
+  try {
+    const referral = await Referral.findById(req.params.id);
+    if (!referral) return res.status(404).json({ message: 'Referral not found' });
+
+    const { name, email, age, assignedDoctor } = req.body;
+
+    // If referral already has a patient, just return it
+    if (referral.patientId) {
+      return res.status(400).json({ message: 'This referral already has a patient linked.' });
+    }
+
+    const patientEmail = email || referral.patientEmail || `patient_${Date.now()}@clinic.local`;
+    let user = await User.findOne({ email: patientEmail });
+
+    if (!user) {
+      user = await User.create({
+        name: name || patientEmail.split('@')[0],
+        email: patientEmail,
+        password: 'temp@1234',
+        role: 'PATIENT',
+        mustChangePassword: true,
+      });
+    }
+
+    let patientRecord = await Patient.findOne({ userId: user._id });
+    if (!patientRecord) {
+      patientRecord = await Patient.create({
+        userId: user._id,
+        age: age || 0,
+        assignedDoctor: assignedDoctor || null,
+        addedBy: req.user._id,
+        approvalStatus: 'APPROVED',
+        isActive: false,
+        referredToAdmin: true,
+      });
+    }
+
+    referral.patientId = user._id;
+    if (email) referral.patientEmail = email;
+    await referral.save();
+
+    const populated = await Referral.findById(referral._id)
+      .populate('patientId', 'name email')
+      .populate('fromDoctor', 'name email');
+    res.json(populated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 
