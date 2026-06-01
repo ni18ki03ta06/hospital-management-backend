@@ -38,23 +38,14 @@ router.get('/', protect, authorize('MAIN_DOCTOR', 'DOCTOR'), async (req, res) =>
     if (req.user.role === 'DOCTOR') {
       query.assignedDoctor = req.user._id;
       query.approvalStatus = 'APPROVED';
-    } else {
-      query = {
-        approvalStatus: 'APPROVED',
-        $or: [
-          { referredToAdmin: true },
-          { assignedDoctor: req.user._id },
-          { addedBy: req.user._id }
-        ]
-      };
     }
+    // MAIN_DOCTOR sees ALL approved patients — no filter
     const patients = await Patient.find(query)
       .populate('userId', 'name email')
       .populate('assignedDoctor', 'name email')
       .populate('addedBy', 'name email')
       .sort({ isActive: -1, createdAt: -1 });
 
-    // Safeguard: Filter out orphaned patients (without valid User details)
     const validPatients = patients.filter(p => p.userId);
     res.json(validPatients);
   } catch (err) {
