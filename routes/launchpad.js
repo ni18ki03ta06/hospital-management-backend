@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { protect, authorize } = require('../middleware/auth');
 const LaunchPad = require('../models/LaunchPad');
+const { STAGES } = require('../models/LaunchPad');
 
 // GET /api/launchpad - MAIN_DOCTOR views all; DOCTOR/PATIENT view their own submissions
 router.get('/', protect, async (req, res) => {
@@ -27,9 +28,29 @@ router.post('/', protect, async (req, res) => {
     const { title, description, driveLink, contact } = req.body;
     const idea = await LaunchPad.create({
       title, description, driveLink, contact,
-      submittedBy: req.user._id
+      submittedBy: req.user._id,
+      stage: 'Idea',
     });
     res.status(201).json(idea);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// PUT /api/launchpad/:id/stage - MAIN_DOCTOR updates pipeline stage
+router.put('/:id/stage', protect, authorize('MAIN_DOCTOR'), async (req, res) => {
+  try {
+    const { stage } = req.body;
+    if (!STAGES.includes(stage)) {
+      return res.status(400).json({ message: `Invalid stage. Must be one of: ${STAGES.join(', ')}` });
+    }
+    const idea = await LaunchPad.findByIdAndUpdate(
+      req.params.id,
+      { stage },
+      { new: true }
+    ).populate('submittedBy', 'name email role');
+    if (!idea) return res.status(404).json({ message: 'Idea not found' });
+    res.json(idea);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
