@@ -31,6 +31,80 @@ router.get('/cardiac-conditions', protect, (req, res) => {
   res.json(CARDIAC_CONDITIONS);
 });
 
+// GET /api/referrals/reports — grouped by doctor, with date filtering
+// MUST be before /:id route to avoid "reports" being treated as an id
+router.get('/reports', protect, authorize('MAIN_DOCTOR'), async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    let dateFilter = {};
+    if (startDate && endDate) {
+      dateFilter = {
+        createdAt: {
+          $gte: new Date(startDate),
+          $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)),
+        },
+      };
+    }
+
+    const referrals = await Referral.find({ toAdmin: true, ...dateFilter })
+      .populate('fromDoctor', 'name email specialization')
+      .populate('patientId', 'name email')
+      .sort({ createdAt: -1 });
+
+    const doctorMap = {};
+    referrals.forEach(ref => {
+      const doc = ref.fromDoctor;
+      if (!doc) return;
+      const docId = doc._id.toString();
+      if (!doctorMap[docId]) {
+        doctorMap[docId] = {
+          doctor: {
+            _id: docId,
+            name: doc.name,
+            email: doc.email,
+            specialization: doc.specialization || '',
+          },
+          totalReferrals: 0,
+          approved: 0,
+          rejected: 0,
+          pending: 0,
+          discharged: 0,
+          referrals: [],
+        };
+      }
+      doctorMap[docId].totalReferrals += 1;
+      const status = (ref.status || '').toLowerCase();
+      if (status === 'approved')   doctorMap[docId].approved   += 1;
+      else if (status === 'rejected')  doctorMap[docId].rejected  += 1;
+      else if (status === 'pending')   doctorMap[docId].pending   += 1;
+      else if (status === 'discharged') doctorMap[docId].discharged += 1;
+
+      doctorMap[docId].referrals.push({
+        _id: ref._id,
+        patientName:     ref.patientId?.name  || ref.patientEmail || 'Unknown Patient',
+        patientEmail:    ref.patientId?.email || ref.patientEmail || '',
+        status:          ref.status,
+        cardiacCondition: ref.cardiacCondition || '',
+        reason:          ref.reason || '',
+        createdAt:       ref.createdAt,
+        photoUrl:        ref.photoUrl || null,
+      });
+    });
+
+    const result = Object.values(doctorMap).sort((a, b) => b.totalReferrals - a.totalReferrals);
+
+    res.json({
+      totalReferrals: referrals.length,
+      totalDoctors:   result.length,
+      dateRange:      { startDate, endDate },
+      doctors:        result,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // POST /api/referrals - DOCTOR creates referral to admin (Dr. Ravikant Patil)
 // Handles three cases:
 //   1. patientId provided (patient from doctor's list)
