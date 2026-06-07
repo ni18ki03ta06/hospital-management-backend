@@ -27,7 +27,7 @@ router.post('/', protect, async (req, res) => {
     const idea = await LaunchPad.create({
       title, description, driveLink, contact,
       submittedBy: req.user._id,
-      stage: 'Idea',
+      stage: 'SUBMITTED',
     });
     res.status(201).json(idea);
   } catch (err) {
@@ -38,18 +38,19 @@ router.post('/', protect, async (req, res) => {
 // PUT /api/launchpad/:id/stage - MAIN_DOCTOR updates pipeline stage
 router.put('/:id/stage', protect, authorize('MAIN_DOCTOR'), async (req, res) => {
   try {
-    const { stage } = req.body;
+    const { stage, stageNote } = req.body;
     if (!STAGES.includes(stage)) {
-      return res.status(400).json({ message: `Invalid stage. Must be one of: ${STAGES.join(', ')}` });
+      return res.status(400).json({ message: `Invalid stage: ${stage}. Valid stages: ${STAGES.join(', ')}` });
     }
     const idea = await LaunchPad.findByIdAndUpdate(
       req.params.id,
-      { stage },
+      { stage, stageNote: stageNote || '', stageUpdatedAt: new Date() },
       { new: true }
     ).populate('submittedBy', 'name email role');
     if (!idea) return res.status(404).json({ message: 'Idea not found' });
     res.json(idea);
   } catch (err) {
+    console.error('Stage update error:', err.message);
     res.status(500).json({ message: err.message });
   }
 });
