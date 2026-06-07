@@ -47,7 +47,7 @@ router.get('/reports', protect, authorize('MAIN_DOCTOR'), async (req, res) => {
       };
     }
 
-    const referrals = await Referral.find({ toAdmin: true, ...dateFilter })
+    const referrals = await Referral.find({ ...dateFilter })
       .populate('fromDoctor', 'name email')
       .populate('patientId', 'name email')
       .sort({ createdAt: -1 });
@@ -74,11 +74,11 @@ router.get('/reports', protect, authorize('MAIN_DOCTOR'), async (req, res) => {
         };
       }
       doctorMap[docId].totalReferrals += 1;
-      const status = (ref.status || '').toLowerCase();
-      if (status === 'approved')   doctorMap[docId].approved   += 1;
-      else if (status === 'rejected')  doctorMap[docId].rejected  += 1;
-      else if (status === 'pending')   doctorMap[docId].pending   += 1;
-      else if (status === 'discharged') doctorMap[docId].discharged += 1;
+      const status = (ref.status || '').toUpperCase();
+      if (status === 'APPROVED')        doctorMap[docId].approved   += 1;
+      else if (status === 'REJECTED')   doctorMap[docId].rejected   += 1;
+      else if (status === 'PENDING')    doctorMap[docId].pending    += 1;
+      else if (status === 'DISCHARGED') doctorMap[docId].discharged += 1;
 
       doctorMap[docId].referrals.push({
         _id: ref._id,
@@ -106,15 +106,8 @@ router.get('/reports', protect, authorize('MAIN_DOCTOR'), async (req, res) => {
   }
 });
 
-// POST /api/referrals - DOCTOR creates referral to admin (Dr. Ravikant Patil)
-// Handles three cases:
-//   1. patientId provided (patient from doctor's list)
-//   2. patientEmail provided + patient exists in DB → use that patient
-//   3. patientEmail provided + patient NOT in DB → create new patient with temp@123
-// Note: upload.single('photo') is used — for JSON requests without a file,
-// multer still parses the body correctly when Content-Type is multipart/form-data.
-// For plain JSON requests (no file), we fall back to req.body directly.
-router.post('/', protect, authorize('DOCTOR'), upload.single('photo'), async (req, res) => {
+// POST /api/referrals - DOCTOR or MAIN_DOCTOR creates referral
+router.post('/', protect, upload.single('photo'), async (req, res) => {
   try {
     const { patientId, patientEmail, toDoctor, toAdmin, cardiacCondition, reason } = req.body;
     const isAdminReferral = toAdmin === 'true' || toAdmin === true;
