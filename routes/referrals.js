@@ -35,7 +35,7 @@ router.get('/cardiac-conditions', protect, (req, res) => {
 // MUST be before /:id route to avoid "reports" being treated as an id
 router.get('/reports', protect, authorize('MAIN_DOCTOR'), async (req, res) => {
   try {
-    console.log('[Reports] called by:', req.user?.role, 'params:', req.query);
+    console.log('[Referrals /reports] hit — role:', req.user?.role, 'query:', req.query);
     const { startDate, endDate } = req.query;
 
     let dateFilter = {};

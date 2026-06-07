@@ -46,8 +46,8 @@ router.post('/', protect, async (req, res) => {
 // PUT /api/launchpad/:id/stage - MAIN_DOCTOR updates pipeline stage
 router.put('/:id/stage', protect, authorize('MAIN_DOCTOR'), async (req, res) => {
   try {
+    console.log('[LaunchPad /stage] hit — id:', req.params.id, 'stage:', req.body.stage, 'role:', req.user?.role);
     const { stage, stageNote } = req.body;
-    console.log('[LaunchPad stage] id:', req.params.id, 'stage:', stage, 'by:', req.user?.role);
     if (!stage || !STAGES.includes(stage)) {
       return res.status(400).json({ message: `Invalid stage "${stage}". Valid: ${STAGES.join(', ')}` });
     }

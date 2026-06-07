@@ -9,6 +9,9 @@ const path = require('path');
 
 dotenv.config();
 
+// Last deployed: 2026-06-07 — referrals/reports + launchpad/:id/stage routes active
+console.log('[Server] Starting v2026-06-07 — routes: referrals/reports, launchpad/stage');
+
 // Redeployed: 2026-06-07 — launchpad stage route + referrals reports route fixes
 
 // Initialize Firebase Admin SDK early
@@ -43,6 +46,17 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/version', (req, res) => {
+  res.json({
+    version: '2026-06-07',
+    routes: [
+      'GET /api/referrals/reports',
+      'PUT /api/launchpad/:id/stage',
+    ],
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // ── Routes ────────────────────────────────────────────────────────────────────
