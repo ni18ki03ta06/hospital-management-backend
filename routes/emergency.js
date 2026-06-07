@@ -5,7 +5,7 @@ const Emergency = require('../models/Emergency');
 // POST /api/emergency - any logged in user triggers emergency
 router.post('/', protect, async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, location } = req.body;
 
     // If patient, find their assigned doctor and include in emergency record
     let assignedDoctorId = null;
@@ -23,6 +23,7 @@ router.post('/', protect, async (req, res) => {
       message: message || 'Emergency assistance needed!',
       status: 'ACTIVE',
       assignedDoctor: assignedDoctorId,
+      location: location || {},
     });
     const populated = await Emergency.findById(emergency._id)
       .populate('requestedBy', 'name email role')

@@ -48,7 +48,7 @@ router.get('/reports', protect, authorize('MAIN_DOCTOR'), async (req, res) => {
     }
 
     const referrals = await Referral.find({ toAdmin: true, ...dateFilter })
-      .populate('fromDoctor', 'name email specialization')
+      .populate('fromDoctor', 'name email')
       .populate('patientId', 'name email')
       .sort({ createdAt: -1 });
 
@@ -63,7 +63,7 @@ router.get('/reports', protect, authorize('MAIN_DOCTOR'), async (req, res) => {
             _id: docId,
             name: doc.name,
             email: doc.email,
-            specialization: doc.specialization || '',
+            specialization: '',
           },
           totalReferrals: 0,
           approved: 0,
@@ -101,6 +101,7 @@ router.get('/reports', protect, authorize('MAIN_DOCTOR'), async (req, res) => {
       doctors:        result,
     });
   } catch (err) {
+    console.error('Reports route error:', err.message, err.stack);
     res.status(500).json({ message: err.message });
   }
 });

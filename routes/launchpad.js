@@ -3,19 +3,17 @@ const { protect, authorize } = require('../middleware/auth');
 const LaunchPad = require('../models/LaunchPad');
 const { STAGES } = require('../models/LaunchPad');
 
-// GET /api/launchpad - MAIN_DOCTOR views all; DOCTOR/PATIENT view their own submissions
+// GET /api/launchpad - MAIN_DOCTOR and DOCTOR see all; PATIENT sees own only
 router.get('/', protect, async (req, res) => {
   try {
-    let ideas;
-    if (req.user.role === 'MAIN_DOCTOR') {
-      ideas = await LaunchPad.find()
-        .populate('submittedBy', 'name email role')
-        .sort({ createdAt: -1 });
-    } else {
-      ideas = await LaunchPad.find({ submittedBy: req.user._id })
-        .populate('submittedBy', 'name email role')
-        .sort({ createdAt: -1 });
+    let query = {};
+    if (req.user.role === 'PATIENT') {
+      query = { submittedBy: req.user._id };
     }
+    // MAIN_DOCTOR and DOCTOR both see all ideas
+    const ideas = await LaunchPad.find(query)
+      .populate('submittedBy', 'name email role')
+      .sort({ createdAt: -1 });
     res.json(ideas);
   } catch (err) {
     res.status(500).json({ message: err.message });

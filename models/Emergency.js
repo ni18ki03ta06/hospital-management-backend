@@ -8,6 +8,13 @@ const emergencySchema = new mongoose.Schema({
   assignedDoctor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   resolvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   resolvedAt: { type: Date },
+  location: {
+    latitude:  { type: Number, default: null },
+    longitude: { type: Number, default: null },
+    accuracy:  { type: Number, default: null },
+    address:   { type: String, default: '' },
+    mapsLink:  { type: String, default: '' },
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Emergency', emergencySchema);
