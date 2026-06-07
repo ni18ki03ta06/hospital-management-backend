@@ -1,7 +1,15 @@
 const router = require('express').Router();
 const { protect, authorize } = require('../middleware/auth');
 const LaunchPad = require('../models/LaunchPad');
-const { STAGES } = require('../models/LaunchPad');
+
+const STAGES = [
+  'SUBMITTED',
+  'IDEA_VALIDATION',
+  'MVP_EARLY_TRACTION',
+  'PITCH_PREPARATION',
+  'INVESTOR_OUTREACH',
+  'SEED_FUNDING_CLOSURE',
+];
 
 // GET /api/launchpad - MAIN_DOCTOR and DOCTOR see all; PATIENT sees own only
 router.get('/', protect, async (req, res) => {
