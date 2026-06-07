@@ -126,6 +126,9 @@ app.use((err, req, res, next) => {
 // ── Start ─────────────────────────────────────────────────────────────────────
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
+    // Run one-time stage migration on startup
+    require('./utils/migrateStages')();
+
     const port = process.env.PORT || 5000;
     server.listen(port, () => {
       // Server started
