@@ -9,6 +9,8 @@ const path = require('path');
 
 dotenv.config();
 
+// Redeployed: 2026-06-07 — launchpad stage route + referrals reports route fixes
+
 // Initialize Firebase Admin SDK early
 require('./utils/firebaseAdmin');
 

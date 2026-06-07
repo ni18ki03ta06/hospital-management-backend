@@ -35,6 +35,7 @@ router.get('/cardiac-conditions', protect, (req, res) => {
 // MUST be before /:id route to avoid "reports" being treated as an id
 router.get('/reports', protect, authorize('MAIN_DOCTOR'), async (req, res) => {
   try {
+    console.log('[Reports] called by:', req.user?.role, 'params:', req.query);
     const { startDate, endDate } = req.query;
 
     let dateFilter = {};
@@ -102,7 +103,7 @@ router.get('/reports', protect, authorize('MAIN_DOCTOR'), async (req, res) => {
     });
   } catch (err) {
     console.error('Reports route error:', err.message, err.stack);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: err.message, stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined });
   }
 });
 

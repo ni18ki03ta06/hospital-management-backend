@@ -47,18 +47,22 @@ router.post('/', protect, async (req, res) => {
 router.put('/:id/stage', protect, authorize('MAIN_DOCTOR'), async (req, res) => {
   try {
     const { stage, stageNote } = req.body;
-    if (!STAGES.includes(stage)) {
-      return res.status(400).json({ message: `Invalid stage: ${stage}. Valid stages: ${STAGES.join(', ')}` });
+    console.log('[LaunchPad stage] id:', req.params.id, 'stage:', stage, 'by:', req.user?.role);
+    if (!stage || !STAGES.includes(stage)) {
+      return res.status(400).json({ message: `Invalid stage "${stage}". Valid: ${STAGES.join(', ')}` });
     }
     const idea = await LaunchPad.findByIdAndUpdate(
       req.params.id,
       { stage, stageNote: stageNote || '', stageUpdatedAt: new Date() },
       { new: true }
     ).populate('submittedBy', 'name email role');
-    if (!idea) return res.status(404).json({ message: 'Idea not found' });
+    if (!idea) {
+      console.error('[LaunchPad stage] 404 — id not found:', req.params.id);
+      return res.status(404).json({ message: 'Idea not found' });
+    }
     res.json(idea);
   } catch (err) {
-    console.error('Stage update error:', err.message);
+    console.error('[LaunchPad stage] error:', err.message);
     res.status(500).json({ message: err.message });
   }
 });
@@ -66,6 +70,7 @@ router.put('/:id/stage', protect, authorize('MAIN_DOCTOR'), async (req, res) => 
 // DELETE /api/launchpad/:id
 router.delete('/:id', protect, authorize('MAIN_DOCTOR'), async (req, res) => {
   try {
+    console.log('[LaunchPad delete] id:', req.params.id);
     await LaunchPad.findByIdAndDelete(req.params.id);
     res.json({ message: 'Deleted' });
   } catch (err) {
